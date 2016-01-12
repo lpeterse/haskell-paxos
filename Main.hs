@@ -2,12 +2,8 @@ module Main where
 
 import Data.Maybe
 import Data.ByteString
-import qualified Data.IntMap as IM
 import qualified Data.IntSet as IS
-
-class (Applicative m) => Transmitter m where
-  send      :: Peer -> Message value -> m ()
-  broadcast :: PaxosMessage value -> m ()
+import qualified Data.IntMap.Strict as IM
 
 type    Quorum        = Int
 type    Peer          = Int
@@ -15,14 +11,11 @@ type    PeerSet       = IS.IntSet
 type    Proposal      = Int
 type    ProposalMap a = IM.IntMap a
 
-data State value
-   = State
-     { stPeerCount :: Int
-     , stLog       :: IM.IntMap (PaxosState value)
-     }
+data MultiPaxos value
+   = MultiPaxos (IM.IntMap (SinglePaxos value))
    deriving (Show)
 
-data PaxosState value
+data SinglePaxos value
    = Consensus value
    | Debate    Proposal (ProposalMap (value, PeerSet))
    deriving (Show)
@@ -52,17 +45,15 @@ instance Functor Response where
   fmap f (Reply x)     = Reply (f x)
   fmap f (Broadcast x) = Broadcast (f x)
 
-processMessage :: Quorum -> Peer -> State value -> Message value -> (Maybe (State value), Response (Message value))
-processMessage quorum peer state (Message i message) =
-  case processPaxosMessage quorum peer pState message of
-    (Nothing, response)      -> ( Nothing
-                                , Message i <$> response)
-    (Just pState', response) -> ( Just (state { stLog = IM.insert i pState' $ stLog state })
-                                , Message i <$> response)
+processMessage :: Quorum -> Peer -> MultiPaxos value -> Message value -> (Maybe (MultiPaxos value), Response (Message value))
+processMessage quorum peer (MultiPaxos log) (Message i message) =
+  case processPaxosMessage quorum peer paxos message of
+    (Nothing, response)      -> ( Nothing,                                    Message i <$> response)
+    (Just paxos', response)  -> ( Just $ MultiPaxos $ IM.insert i paxos' log, Message i <$> response)
   where
-    pState = fromMaybe (Debate 0 mempty) $ IM.lookup i $ stLog state
+    paxos = fromMaybe (Debate 0 mempty) $ IM.lookup i log
 
-processPaxosMessage :: Quorum -> Peer -> PaxosState value -> PaxosMessage value -> (Maybe (PaxosState value), Response (PaxosMessage value))
+processPaxosMessage :: Quorum -> Peer -> SinglePaxos value -> PaxosMessage value -> (Maybe (SinglePaxos value), Response (PaxosMessage value))
 processPaxosMessage quorum peer state message = case message of
   -- Propose means the peer wants us to prepare and promise not to accept
   -- any lower proposals.
@@ -114,13 +105,16 @@ processPaxosMessage quorum peer state message = case message of
           Just (_, peers) -> if IS.member peer peers
             -- Do not send anything here! Replying would lead to ping-pong.
             then ( Nothing, Silence )
+            -- We and the other peer are accepting although not yet in the peers set (+2!).
             else if IS.size peers + 2 >= quorum
               then ( Just $ Consensus value, Broadcast $ Learned value )
               else ( Just $ Debate proposal $ IM.insert proposal (value, IS.insert peer peers) accepted, Reply message )
-  -- Learned means immediate end of the discussion.
-  -- If we already know about the concensus we do nothing and return the
+  -- Learned means immediate end of the debate.
+  -- If we already know about the consensus we do nothing and return the
   -- previous state. In the other case we store the value in the log.
-  Learned learned -> ( Just $ Consensus learned, Silence )
+  Learned learned -> case state of
+    Consensus _ -> ( Nothing, Silence )
+    Debate _ _  -> ( Just $ Consensus learned, Silence )
   where
     highest accepted = case IM.maxViewWithKey accepted of
       Nothing               -> Nothing
