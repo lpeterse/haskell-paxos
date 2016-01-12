@@ -16,8 +16,7 @@ build-type:          Simple
 cabal-version:       >=1.10
 
 library
-  exposed-modules:     Main,
-                       Control.Monad.GetterSetter
+  exposed-modules:     Main
   -- other-modules:       
   -- other-extensions:    
   build-depends:       base >=4.8 && <4.9
