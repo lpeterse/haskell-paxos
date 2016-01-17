@@ -52,50 +52,60 @@ class Monad m => Transmitter m where
   send :: peer -> PaxosMessage value -> m ()
   broadcast :: PaxosMessage value -> m ()
 
+class Applicative m => Delay m where
+  delay :: Int -> m ()
 
 -- | Try to commit a value.
 --
 --  First tries to get a quorum for a proposal and then issues an accept
 --  request.
-propose :: (Transmitter m, Ord value) => PeerCount -> Peer -> Peer -> value -> m value
+propose :: (Transmitter m, Delay m) => PeerCount -> Peer -> Peer -> value -> m value
 propose peerCount self peer value = do
-  proposeGreater 0
+  issueProposal 0 self
   where
-    proposeGreater proposal = do
-      let proposal' = (proposal `div` peerCount) * peerCount + self
-      broadcast $ Propose proposal'
-      collectPromises proposal' Nothing mempty
+    issueProposal iteration proposal = do
+      broadcast $ Propose proposal
+      collectPromises iteration proposal Nothing (IS.singleton self)
     -- We sent a proposal and now wait for a quorum to promise.
     -- When a quorum promised we send an accept request either
     -- with our value or a preserved one from the promises.
-    collectPromises proposal conserved peers = fix $ \continue-> do
+    collectPromises iteration proposal conserved peers = fix $ \continue-> do
       message <- receive
       case message of
         Promise promised accepted ->
           case compare promised proposal of
             LT -> continue
-            GT -> proposeGreater promised
+            GT -> do
+              delay iteration
+              issueProposal
+                ( succ iteration )
+                ( ( promised `div` peerCount ) * peerCount + self )
             EQ -> if IS.member peer peers
               then continue
-              else if (IS.size peers + 2) * 2 >= peerCount
+              else if ( IS.size peers + 1 ) * 2 >= peerCount
                 then do
                   broadcast 
                     $ Accept proposal
                     $ maybe value snd conserved
                   waitForConsensus
                 else do
-                  collectPromises proposal
-                    ( max conserved accepted )
+                  collectPromises iteration proposal
+                    ( case conserved of
+                        Nothing    -> accepted
+                        Just (c,_) -> case accepted of
+                          Nothing    -> conserved
+                          Just (a,_) -> if c > a then conserved else accepted
+                    )
                     ( IS.insert peer peers )
-        Learned value' -> return value'
-        _              -> continue
+        Learned v -> return v
+        _         -> continue
    -- We sent an accept request and now wait for consensus.
    -- We do not return until we know the value. We rather wait forever.
-    waitForConsensus = do
+    waitForConsensus = fix $ \continue-> do
       message <- receive
       case message of
-        Learned value' -> return value'
-        _              -> waitForConsensus
+        Learned v -> return v
+        _         -> continue
 
 processMessage :: Quorum -> Peer -> MultiPaxos value -> Message value -> (Maybe (MultiPaxos value), Response (Message value))
 processMessage quorum peer (MultiPaxos log) (Message i message) =
