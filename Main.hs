@@ -52,34 +52,32 @@ class Monad m => Transmitter m where
   send :: peer -> PaxosMessage value -> m ()
   broadcast :: PaxosMessage value -> m ()
 
-class Applicative m => Delay m where
-  delay :: Int -> m ()
+class Applicative m => Waiting m where
+  waitRandomInterval :: m ()
 
 -- | Try to commit a value.
 --
 --  First tries to get a quorum for a proposal and then issues an accept
 --  request.
-propose :: (Transmitter m, Delay m) => PeerCount -> Peer -> Peer -> value -> m value
+propose :: (Transmitter m, Waiting m) => PeerCount -> Peer -> Peer -> value -> m value
 propose peerCount self peer value = do
-  issueProposal 0 self
+  issueProposal self
   where
-    issueProposal iteration proposal = do
+    issueProposal proposal = do
       broadcast $ Propose proposal
-      collectPromises iteration proposal Nothing (IS.singleton self)
+      collectPromises proposal Nothing (IS.singleton self)
     -- We sent a proposal and now wait for a quorum to promise.
     -- When a quorum promised we send an accept request either
     -- with our value or a preserved one from the promises.
-    collectPromises iteration proposal conserved peers = fix $ \continue-> do
+    collectPromises proposal conserved peers = fix $ \continue-> do
       message <- receive
       case message of
         Promise promised accepted ->
           case compare promised proposal of
             LT -> continue
             GT -> do
-              delay iteration
-              issueProposal
-                ( succ iteration )
-                ( ( promised `div` peerCount ) * peerCount + self )
+              waitRandomInterval
+              issueProposal ( ( promised `div` peerCount ) * peerCount + self )
             EQ -> if IS.member peer peers
               then continue
               else if ( IS.size peers + 1 ) * 2 >= peerCount
@@ -89,7 +87,7 @@ propose peerCount self peer value = do
                     $ maybe value snd conserved
                   waitForConsensus
                 else do
-                  collectPromises iteration proposal
+                  collectPromises proposal
                     ( case conserved of
                         Nothing    -> accepted
                         Just (c,_) -> case accepted of
