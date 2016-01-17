@@ -48,39 +48,48 @@ instance Functor Response where
   fmap f (Broadcast x) = Broadcast (f x)
 
 class Monad m => Transmitter m where
-  receive :: m (PaxosMessage value)
-  send :: peer -> PaxosMessage value -> m ()
+  receive :: m (Peer, PaxosMessage value)
+  send :: Peer -> PaxosMessage value -> m ()
   broadcast :: PaxosMessage value -> m ()
 
 class Applicative m => Waiting m where
   waitRandomInterval :: m ()
 
+class PaxosContext m where
+  getSelf :: m Peer
+  getSize :: m Int
+
+execute :: (Transmitter m, Waiting m, PaxosContext m) => value -> m ()
+execute value = do
+  value' <- propose (value)
+  return ()
+
 -- | Try to commit a value.
---
---  First tries to get a quorum for a proposal and then issues an accept
---  request.
-propose :: (Transmitter m, Waiting m) => PeerCount -> Peer -> Peer -> value -> m value
-propose peerCount self peer value = do
-  issueProposal self
+propose :: (Transmitter m, Waiting m, PaxosContext m) => value -> m value
+propose value = do
+  getSelf >>= issueProposal
   where
     issueProposal proposal = do
+      self <- getSelf
       broadcast $ Propose proposal
       collectPromises proposal Nothing (IS.singleton self)
     -- We sent a proposal and now wait for a quorum to promise.
     -- When a quorum promised we send an accept request either
     -- with our value or a preserved one from the promises.
     collectPromises proposal conserved peers = fix $ \continue-> do
-      message <- receive
+      self <- getSelf
+      size <- getSize
+      (peer, message) <- receive
       case message of
         Promise promised accepted ->
           case compare promised proposal of
             LT -> continue
             GT -> do
               waitRandomInterval
-              issueProposal ( ( promised `div` peerCount ) * peerCount + self )
+              issueProposal ( ( promised `div` size ) * size + self )
             EQ -> if IS.member peer peers
               then continue
-              else if ( IS.size peers + 1 ) * 2 >= peerCount
+              else if ( IS.size peers + 1 ) * 2 >= size
                 then do
                   broadcast 
                     $ Accept proposal
@@ -99,11 +108,11 @@ propose peerCount self peer value = do
         _         -> continue
    -- We sent an accept request and now wait for consensus.
    -- We do not return until we know the value. We rather wait forever.
-    waitForConsensus = fix $ \continue-> do
-      message <- receive
+    waitForConsensus = do
+      (_, message) <- receive
       case message of
         Learned v -> return v
-        _         -> continue
+        _         -> waitForConsensus
 
 processMessage :: Quorum -> Peer -> MultiPaxos value -> Message value -> (Maybe (MultiPaxos value), Response (Message value))
 processMessage quorum peer (MultiPaxos log) (Message i message) =
