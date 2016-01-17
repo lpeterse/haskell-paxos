@@ -19,6 +19,10 @@ data Message value
 
 type SlotT = ReaderT Slot
 
+data MultiPaxos value
+   = MultiPaxos (IM.IntMap (Slot.State value))
+   deriving (Show)
+
 class (Monad m) => Transmitter m where
   send      :: Peer -> Message value -> m ()
   receive   :: m (Peer, Message value)

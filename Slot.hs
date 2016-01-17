@@ -10,11 +10,16 @@ import qualified Data.IntMap.Strict as IM
 
 import Paxos
 
-data Message value
-   = Propose  Proposal
-   | Promise  Proposal (Maybe (Proposal, value))
-   | Accept   Proposal value
-   | Learned  value
+data State     value
+   = Consensus value
+   | Debate    Proposal (ProposalMap (value, PeerSet))
+   deriving (Show)
+
+data Message   value
+   = Propose   Proposal
+   | Promise   Proposal (Maybe (Proposal, value))
+   | Accept    Proposal value
+   | Learned   value
    deriving (Show)
 
 class SlotM m where
@@ -78,10 +83,9 @@ propose value = do
         Learned v -> return v
         _         -> continue
 
-
-{-
-processPaxosMessage :: Quorum -> Peer -> SinglePaxos value -> PaxosMessage value -> (Maybe (SinglePaxos value), Response (PaxosMessage value))
-processPaxosMessage quorum peer state message = 
+alterState :: (PaxosM m, SlotM m) => State value -> Peer -> Message value -> m (Maybe (State value))
+alterState state peer message = do
+  size <- getSize
   case message of
     -- Propose means the peer wants us to prepare
     -- and promise not to accept any lower proposals.
@@ -89,18 +93,24 @@ processPaxosMessage quorum peer state message =
       case state of
         -- We tell the sender that concensus has been found.
         -- This is a non-strictly necessary optimisation.
-        Consensus value ->
-          ( Nothing, Reply $ Learned value )
+        Consensus value -> do
+          sendSlot peer $ Learned value
+          return $ Nothing
         -- If the proposal is greater than what we have accepted
         -- we promise to accept nothing lower than the sender's
         -- proposal or the highest proposal we have promised yet.
-        Debate promised accepted ->
+        Debate promised accepted -> do
           if proposal > promised
-            then ( Just $ Debate proposal accepted, Reply $ Promise proposal $ highest accepted)
-            else ( Nothing, Reply $ Promise promised $ highest accepted)
+            then do
+              sendSlot peer $ Promise proposal $ highest accepted
+              return $ Just $ Debate proposal accepted
+            else do
+              sendSlot peer $ Promise promised $ highest accepted
+              return $ Nothing
     -- We ignore Promise messages.
     -- They are only relevant for proposers.
-    Promise _ _ -> ( Nothing, Silence )
+    Promise _ _ -> do
+      return $ Nothing
     -- The accept message has a double meaning (Accept and Accepting):
     -- Its either the peer that asks us to accept or the peer was asked to
     -- accept and tells all others including us that he accepts.
@@ -114,8 +124,9 @@ processPaxosMessage quorum peer state message =
     Accept proposal value ->
       case state of
         -- Tell the peer that consensus has been found already.
-        Consensus learned ->
-          ( Nothing, Reply $ Learned learned )
+        Consensus v -> do
+          sendSlot peer $ Learned v
+          return $ Nothing
         -- An entry in the accepted map means that we accepted the value.
         -- That means that we can only learn peers for proposals that we
         -- ourselves accepted.
@@ -125,26 +136,36 @@ processPaxosMessage quorum peer state message =
             Nothing -> if promised > proposal
               -- We promised not to accept this proposal.
               -- Don't update the state and send the peer a Promise as a reject.
-              then ( Nothing, Reply $ Promise promised $ highest accepted )
+              then do
+                sendSlot peer $ Promise promised $ highest accepted
+                return Nothing
               -- We accept this proposal as it is equal or higher to what we have promised.
               -- We set our promise state to the proposal and create an entry in the accepted map.
               -- We send a broadcast to signal our accept.
-              else ( Just $ Debate proposal $ IM.insert proposal (value, IS.singleton peer) accepted, Broadcast message )
+              else do
+                broadcastSlot message
+                return $ Just $ Debate proposal $ IM.insert proposal (value, IS.singleton peer) accepted
             Just (_, peers) -> if IS.member peer peers
               -- Do not send anything here! Replying would lead to ping-pong.
-              then ( Nothing, Silence )
+              then do
+                return $ Nothing
               -- We and the other peer are accepting although not yet in the peers set (+2!).
-              else if IS.size peers + 2 >= quorum
-                then ( Just $ Consensus value, Broadcast $ Learned value )
-                else ( Just $ Debate proposal $ IM.insert proposal (value, IS.insert peer peers) accepted, Reply message )
+              else if ( IS.size peers + 1 ) * 2 >= size
+                then do
+                  broadcastSlot $ Learned value
+                  return $ Just $ Consensus value
+                else do
+                  sendSlot peer $ message
+                  return $ Just $ Debate proposal $ IM.insert proposal (value, IS.insert peer peers) accepted
     -- Learned means immediate end of the debate.
     -- If we already know about the consensus we do nothing and return the
     -- previous state. In the other case we store the value in the log.
-    Learned learned -> case state of
-      Consensus _ -> ( Nothing, Silence )
-      Debate _ _  -> ( Just $ Consensus learned, Silence )
+    Learned v -> case state of
+      Consensus _ -> do
+        return $ Nothing
+      Debate _ _  -> do
+        return $ Just $ Consensus v
   where
     highest accepted = case IM.maxViewWithKey accepted of
       Nothing               -> Nothing
       Just ((p, (v, _)), _) -> Just (p, v)
--}

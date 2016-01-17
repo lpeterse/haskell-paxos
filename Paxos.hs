@@ -17,14 +17,7 @@ type    Proposal      = Int
 type    ProposalMap a = IM.IntMap a
 type    Unique        = Int
 
-data MultiPaxos value
-   = MultiPaxos (IM.IntMap (SinglePaxos value))
-   deriving (Show)
 
-data SinglePaxos value
-   = Consensus value
-   | Debate    Proposal (ProposalMap (value, PeerSet))
-   deriving (Show)
 
 data Response message
    = Silence
