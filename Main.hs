@@ -53,7 +53,15 @@ commit value = do
   getGreatestSlot >>= claim . succ
   where
     claim slot = do
-      claimed <- runReaderT ( Slot.claim value ) slot
+      claimed <- runReaderT ( Slot.claim $ Just value ) slot
+      unless claimed $ claim ( succ slot )
+
+sync  :: (PaxosM m, Transmitter m) => m ()
+sync = do
+  getGreatestSlot >>= claim . succ
+  where
+    claim slot = do
+      claimed <- runReaderT ( Slot.claim Nothing ) slot
       unless claimed $ claim ( succ slot )
 
 {-
