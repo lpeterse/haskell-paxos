@@ -27,6 +27,10 @@ class SlotM m where
   receiveSlot   :: m (Peer, Message value)
   broadcastSlot :: Message value -> m ()
 
+query :: (PaxosM m, SlotM m) => m (Maybe value)
+query = do
+  undefined
+
 claim :: (PaxosM m, SlotM m) => value -> m Bool
 claim value = do
   unique       <- getUnique

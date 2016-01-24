@@ -64,6 +64,20 @@ sync = do
       claimed <- runReaderT ( Slot.claim Nothing ) slot
       unless claimed $ claim ( succ slot )
 
+consume :: (PaxosM m, Transmitter m) => m (Stream value m)
+consume = do
+  getGreatestSlot >>= stream
+  where
+    stream slot = do
+      mvalue <- runReaderT Slot.query slot
+      case mvalue of
+        Nothing    -> stream $ succ slot
+        Just value -> return $ Stream value $ stream $ succ slot
+
+data Stream value m
+   = Stream value (m (Stream value m))
+
+
 {-
 process :: Quorum -> Peer -> MultiPaxos value -> Message value -> (Maybe (MultiPaxos value), Response (Message value))
 process quorum peer (MultiPaxos log) (Message i message) =
