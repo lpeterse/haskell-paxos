@@ -19,6 +19,8 @@ library
   exposed-modules:     Main
                      , Slot
                      , Paxos
+                     , Clustered
+                     , Patchable
   -- other-modules:       
   -- other-extensions:    
 --  ghc-options:         -Wall
