@@ -19,7 +19,7 @@ library
   exposed-modules:     Main
                      , Slot
                      , Paxos
-                     , Clustered
+                     , Acid
                      , Patchable
                      , ClusterState
   -- other-modules:       
