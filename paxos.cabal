@@ -21,6 +21,7 @@ library
                      , Paxos
                      , Clustered
                      , Patchable
+                     , ClusterState
   -- other-modules:       
   -- other-extensions:    
 --  ghc-options:         -Wall
