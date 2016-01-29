@@ -1,5 +1,5 @@
 {-# LANGUAGE FlexibleContexts, FlexibleInstances #-}
-module Main where
+module Foo where
 
 import Control.Monad
 import Control.Monad.Reader
