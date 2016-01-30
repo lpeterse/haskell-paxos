@@ -1,6 +1,9 @@
 module Main where
 
-import Server
+import Cluster
+import RestInterface
 
 main :: IO ()
-main  = application
+main  = do
+  cluster <- Cluster.new :: IO (Cluster Int)
+  RestInterface.run cluster

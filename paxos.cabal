@@ -12,12 +12,12 @@ library
   default-language:  Haskell2010
   ghc-options:       -Wall
   hs-source-dirs:    src
-  exposed-modules:   Server,
-                     Foo,
+  exposed-modules:   Foo,
                      Slot,
                      Paxos,
                      Patchable,
-                     ClusterState,
+                     Cluster,
+                     RestInterface,
                      Control.Distributed.Acid
   build-depends:     base <5,
                      containers,

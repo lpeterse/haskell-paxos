@@ -1,15 +1,13 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE TypeOperators #-}
-module Server where
+module RestInterface where
 
-import GHC.Generics
 import Network.Wai
 import Servant
-import Network.Wai
 import Network.Wai.Handler.Warp
-import System.Environment
+
+import Cluster
 
 type Root   =  Rest
           :<|> Static
@@ -23,10 +21,11 @@ serveRoot    = serveRest
 serveStatic :: Server Static
 serveStatic  = serveDirectory "browser"
 
-serveRest = serveStatic
+serveRest   :: Server Static
+serveRest    = serveStatic
 
-app :: Application
-app = serve (Proxy :: Proxy Root) serveRoot
+app         :: Application
+app          = serve (Proxy :: Proxy Root) serveRoot
 
-application :: IO ()
-application = run 8081 app
+run :: Cluster value -> IO ()
+run _ = Network.Wai.Handler.Warp.run 8081 app

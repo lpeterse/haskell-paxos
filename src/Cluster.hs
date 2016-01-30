@@ -1,9 +1,18 @@
 {-# LANGUAGE TypeFamilies #-}
-module ClusterState
+module Cluster
   ( ClusterState (..)
+  , ClusterNode (..)
+  , Cluster (..)
+  , new
   ) where
 
 import Patchable
+
+new :: Patchable value => IO (Cluster value)
+new  = return Cluster
+
+data Cluster value
+   = Cluster
 
 data ClusterState
    = ClusterState
