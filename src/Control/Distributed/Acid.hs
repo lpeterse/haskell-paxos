@@ -1,4 +1,4 @@
-module Acid 
+module Control.Distributed.Acid
   ( Acid ()
   , readAcid
   , writeAcid
@@ -9,22 +9,18 @@ module Acid
 import Patchable
 
 data Acid value
-   = Acid
-     {
 
-     }
-
--- | Reads the current value.
+-- | Reads the value.
 --
 --   A majority of the cluster might have agreed on a newer value when this
 --   operation returns. This is an inevitable logical limitation.
---   
+--
 --   Still, the following holds: The value returned has been the most recent one
 --   at the moment or after the operation has been entered.
 --
 --   This operation blocks until a value can be returned.
 readAcid :: Acid value -> IO value
-readAcid = 
+readAcid =
   undefined
 
 -- | Writes the value.
@@ -51,6 +47,3 @@ modifyAcid =
 patchAcid :: Patchable value => Acid value -> (value -> Maybe (Patch value)) -> IO (Maybe value)
 patchAcid =
   undefined
-
-
-

@@ -1,10 +1,5 @@
 module Paxos where
 
-import Control.Monad
-
-import Data.Function
-import Data.Maybe
-import Data.ByteString
 import qualified Data.IntSet as IS
 import qualified Data.IntMap.Strict as IM
 
@@ -17,8 +12,6 @@ type    Proposal      = Int
 type    ProposalMap a = IM.IntMap a
 type    Unique        = Int
 
-
-
 data Response message
    = Silence
    | Reply message
@@ -26,7 +19,7 @@ data Response message
    deriving (Show)
 
 instance Functor Response where
-  fmap f (Silence)     = Silence
+  fmap _ Silence       = Silence
   fmap f (Reply x)     = Reply (f x)
   fmap f (Broadcast x) = Broadcast (f x)
 
