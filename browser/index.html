@@ -3,32 +3,30 @@
   <head>
     <title>Paxos Cluster Administration</title>
     <link rel="stylesheet"
-          href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css"
-          integrity="sha384-1q8mTJOASx8j1Au+a5WDVnPi2lkFfwwEAa8hDDdjZlpLegxhjVME1fgjWPGmkzs7"
-          crossorigin="anonymous">
-    <link rel="stylesheet"
-          href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap-theme.min.css"
-          integrity="sha384-fLW2N01lMqjakBkx3l/M9EahuwpSfeNvV63J5ezn3uZzapT0u7EYsXMjQV+0En5r"
+          href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.2/css/bootstrap.min.css"
+          integrity="sha256-xWeRKjzyg6bep9D1AsHzUPEWHbWMzlRc84Z0aG+tyms= sha512-mGIRU0bcPaVjr7BceESkC37zD6sEccxE+RJyQABbbKNe83Y68+PyPM5nrE1zvbQZkSHDCJEtnAcodbhlq2/EkQ=="
           crossorigin="anonymous">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/es6-shim/0.33.3/es6-shim.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/systemjs/0.19.16/system-polyfills.js"></script>
-    <script src="https://code.angularjs.org/2.0.0-beta.0/angular2-polyfills.js"></script>
+    <script src="https://code.angularjs.org/2.0.0-beta.2/angular2-polyfills.js"></script>
     <script src="https://code.angularjs.org/tools/system.js"></script>
     <script src="https://code.angularjs.org/tools/typescript.js"></script>
-    <script src="https://code.angularjs.org/2.0.0-beta.0/Rx.js"></script>
-    <script src="https://code.angularjs.org/2.0.0-beta.0/angular2.dev.js"></script>
+    <script src="https://code.angularjs.org/2.0.0-beta.2/Rx.js"></script>
+    <script src="https://code.angularjs.org/2.0.0-beta.2/angular2.dev.js"></script>
+    <script src="https://code.angularjs.org/2.0.0-beta.2/router.dev.js"></script>
+    <script src="https://code.angularjs.org/2.0.0-beta.2/http.dev.js"></script>
     <script>
       System.config({
-        transpiler: 'typescript', 
-        typescriptOptions: { emitDecoratorMetadata: true }, 
-        packages: {'app': {defaultExtension: 'ts'}} 
+        transpiler: 'typescript',
+        typescriptOptions: { emitDecoratorMetadata: true },
+        packages: {'paxos': {defaultExtension: 'ts'}}
       });
-      System.import('app/boot').then(null, console.error.bind(console));
+      System.import('paxos/boot').then(null, console.error.bind(console));
     </script>
   </head>
 
   <body>
-    <my-app>Loading...</my-app>
+    <app>Loading...</app>
   </body>
 
 </html>
