@@ -4,10 +4,6 @@ module Foo where
 import Control.Monad
 import Control.Monad.Reader
 
-import Data.Function
-import Data.Maybe
-import Data.ByteString
-import qualified Data.IntSet as IS
 import qualified Data.IntMap.Strict as IM
 
 import Paxos

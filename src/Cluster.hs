@@ -2,32 +2,37 @@
 module Cluster
   ( ClusterState (..)
   , ClusterNode (..)
-  , Cluster (..)
+  , Node (..)
   , new
   ) where
 
 import Patchable
+import Transceiver
 
-new :: Patchable value => IO (Cluster value)
-new  = return Cluster
+new :: (Patchable v, Transceiver t) => t -> IO (ClusterNode v t)
+new t = return (ClusterNode undefined t)
 
-data Cluster value
-   = Cluster
+-- | A cluster node instance.
+data (Transceiver t) => ClusterNode value t
+   = ClusterNode
+     { clusterState       :: ClusterState
+     , clusterTransceiver :: t
+     }
 
 data ClusterState
    = ClusterState
-     { clusterNodes :: [Maybe ClusterNode]
+     { clusterNodes :: [Node]
      }
 
-data ClusterNode
-   = ClusterNode
+data Node
+   = Node
      { nodeName    :: String
      , nodeAddress :: String
      }
    deriving (Eq)
 
 data ClusterPatch
-   = SetNode Int (Maybe ClusterNode)
+   = SetNode Int Node
 
 instance Patchable ClusterState where
   type Patch ClusterState = ClusterPatch

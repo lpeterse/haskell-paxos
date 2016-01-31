@@ -1,10 +1,6 @@
 module Slot where
 
-import Control.Monad
-
 import Data.Function
-import Data.Maybe
-import Data.ByteString
 import qualified Data.IntSet as IS
 import qualified Data.IntMap.Strict as IM
 
